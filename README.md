@@ -30,3 +30,24 @@ What this does is as follows:
 
 That's it, you've now run PHP in docker, and this will work exactly the same way on ALL machines that run docker, neat!
 
+## Running PHP Files
+
+Just outputting the PHP version isn't a super helpful app to be honest, let's get some PHP files in there.
+
+Lets make a hello world PHP file:
+```sh
+mkdir -p src/public
+echo 'hello world' > src/public/index.html
+```
+
+Now run:
+
+`docker run --rm --name=php --volume=$(pwd)/src/:/var/www/html php:7.2 /usr/local/bin/php /var/www/html/public/php`
+
+You should see `hello world` output to your console.
+
+Notice two additions:
+
+* `--volume` "mounts" the `src` directory inside the container to `/var/www/html`
+* `/var/www/html/public/php` in place of the `-v` tells php to execute the hello world script passed to it
+
