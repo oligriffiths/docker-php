@@ -38,7 +38,7 @@ Just outputting the PHP version isn't a super helpful app to be honest, let's ge
 Lets make a hello world PHP file:
 ```sh
 mkdir -p src/public
-echo 'hello world' > src/public/index.html
+echo '<?php echo "hello world\\n";' > src/public/index.php
 ```
 
 Now run:
@@ -136,3 +136,42 @@ docker run --rm --name=php --volume=$(pwd)/src/:/var/www/html --volume=$(pwd)/et
 * `-d xdebug.remote_autostart=1` Sets a PHP ini variable to enable auto-starting XDebug, you need this for CLI
 
 You should see the XDebug dialog box appear in PHPStorm and stop at the break point.
+
+## Docker Compose
+
+As you may have noticed, the command is getting kind of long now, and we will also probably want to add in some other
+services into the mix, like `nginx`, `php-fpm`, `mysql` and `memcache`.
+
+To do this, we can use a tool called `docker-compose`. It allows us to configure a set of containers that can all talk
+to each other, and provides a handy place for all our configuration options.
+
+So, go ahead and create a `docker-composer.yaml` in the root of this project with the contents:
+
+```yaml
+version: '3.3'
+
+services:
+
+  php:
+    build: ./
+    volumes:
+      - "./src:/var/www/html"
+      - "./etc/php/php.ini:/usr/local/etc/php/conf.d/custom.ini"
+    environment:
+      - "PHP_IDE_CONFIG=serverName=PHPSTORM_DOCKER"
+    command: "php -d xdebug.remote_autostart=1 /var/www/html/public/index.php"
+```
+
+This should all make sense, we're telling it to use a out custom docker file to build the image, to make 2 volume mounts,
+set an environment variable for xdebug, and run the index file command.
+
+Now run: `docker-compose up` and you should see:
+
+```sh
+Recreating phpdocker_php_1 ... done
+Attaching to phpdocker_php_1
+php_1  | hello world
+phpdocker_php_1 exited with code 0
+```
+
+Great, `docker-compose` has create a container for us, called `php_1`

@@ -1,0 +1,12 @@
+version: '3.3'
+
+services:
+
+  php:
+    build: ./dockerfiles/php
+    volumes:
+      - "./src:/var/www/html"
+      - "./etc/php/php.ini:/usr/local/etc/php/conf.d/custom.ini"
+    environment:
+      - "PHP_IDE_CONFIG=serverName=PHPSTORM_DOCKER"
+    command: "php -d xdebug.remote_autostart=1 /var/www/html/public/index.php"
