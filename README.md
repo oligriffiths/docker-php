@@ -96,3 +96,43 @@ Xdebug
 ```
 
 All listed in the output.
+
+## XDebug
+
+Configuring XDebug in Docker can be a little tricky. I'm only going to cover getting it working in PHPStorm.
+
+Add run in your terminal:
+
+```sh
+mkdir -p etc/php
+echo "[Xdebug]
+xdebug.remote_enable=1
+xdebug.idekey=PHPSTORM_XDEBUG
+xdebug.max_nesting_level=1000
+xdebug.remote_host=docker.for.mac.host.internal" > etc/php/php.ini
+```
+
+This will create a basic XDebug config that will allow it to connect back to the local host via the "remote" debugging
+functionality.
+
+Now, in PHPStorm, go to Preferences > Languages & Frameworks > PHP > Servers
+
+Hit the `+` button, and add:
+
+* Name: `PHPSTORM_DOCKER`
+* Host: `localhost`
+* Check `use path mappings`
+* Set `/var/www/html` for `src`
+
+If you're familiar with XDebug in PHPStorm, you should be able to enable the listener, put a breakpoint in the `index.php`
+file, and run:
+
+```
+docker run --rm --name=php --volume=$(pwd)/src/:/var/www/html --volume=$(pwd)/etc/php/php.ini:/usr/local/etc/php/conf.d/custom.ini -e PHP_IDE_CONFIG=serverName=PHPSTORM_DOCKER php-docker /usr/local/bin/php -d xdebug.remote_autostart=1 /var/www/html/public/index.php
+```
+
+* `--volume=$(pwd)/etc/php/php.ini:/usr/local/etc/php/conf.d/custom.ini` Adds in our custom PHP config to enable XDebug
+* `-e PHP_IDE_CONFIG=serverName=PHPSTORM_DOCKER` Sets an environment variable required to make XDebug work
+* `-d xdebug.remote_autostart=1` Sets a PHP ini variable to enable auto-starting XDebug, you need this for CLI
+
+You should see the XDebug dialog box appear in PHPStorm and stop at the break point.
