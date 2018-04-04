@@ -165,7 +165,9 @@ services:
 This should all make sense, we're telling it to use a out custom docker file to build the image, to make 2 volume mounts,
 set an environment variable for xdebug, and run the index file command.
 
-Now run: `docker-compose up` and you should see:
+Now run `docker-compose build` to have it build a new image in case it needs that.
+
+Then run: `docker-compose up` and you should see:
 
 ```sh
 Recreating phpdocker_php_1 ... done
@@ -175,3 +177,96 @@ phpdocker_php_1 exited with code 0
 ```
 
 Great, `docker-compose` has create a container for us, called `php_1`
+
+
+## Serving web traffic
+
+Running a single PHP script is great and all, but I'm getting you probably want to run a website, rather than a sing
+PHP script.
+
+To do this, we're going to use `nginx` and `php-fpm`.
+
+Update the `docker-compose.yaml` to the following:
+
+```yaml
+version: '3.3'
+
+services:
+  nginx:
+    image: nginx:1.13.11
+    restart: always
+    volumes:
+      - "./etc/nginx/default.vhost.conf:/etc/nginx/conf.d/default.conf"
+      - "./src:/var/www/html"
+    ports:
+      - "8000:80"
+    depends_on:
+      - php
+
+  php:
+    build: ./dockerfiles/php
+    restart: always
+    volumes:
+      - "./src:/var/www/html"
+      - "./etc/php/php.ini:/usr/local/etc/php/conf.d/custom.ini"
+    environment:
+      - "PHP_IDE_CONFIG=serverName=PHPSTORM_DOCKER"
+```
+
+What this does it start 2 services, `php` and `nginx`, and exposes port `8000` on localhost to map to port `80` in the
+container, which is the default port that Nginx is listening on.
+
+```sh
+mkdir -p dockerfiles/php
+mv Dockerfile dockerfiles/php/
+mkdir -p etc/nginx
+touch etc/nginx/default.vhost.conf
+```
+
+Open `dockerfiles/php/Dockerfile` and set the `FROM` line at the top, to: `FROM php:7.2-fpm`
+
+Now set the `etc/nginx/default.vhost.conf` to the following:
+
+```
+# Nginx configuration
+
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+
+    index index.php index.html;
+    error_log  /var/log/nginx/error.log;
+    access_log /var/log/nginx/access.log;
+    root /var/www/html/public;
+
+    location ~ \.php$ {
+        try_files $uri =404;
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        fastcgi_pass php:9000;
+        fastcgi_index index.php;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param PATH_INFO $fastcgi_path_info;
+    }
+}
+```
+
+This is just a simple nginx configuration that will pass requests for PHP files to php-fpm that will run the PHP process,
+and set the default index file to `index.php`.
+
+Now run `docker-compose build` to build a new image, then `docker-compose up`, you should see:
+
+```sh
+phpdocker_php_1 is up-to-date
+Recreating phpdocker_nginx_1 ... done
+Attaching to phpdocker_php_1, phpdocker_nginx_1
+php_1    | [04-Apr-2018 21:36:32] NOTICE: fpm is running, pid 1
+php_1    | [04-Apr-2018 21:36:32] NOTICE: ready to handle connections
+php_1    | 172.18.0.3 -  04/Apr/2018:21:36:44 +0000 "GET /index.php" 200
+php_1    | 172.18.0.3 -  04/Apr/2018:21:37:16 +0000 "GET /index.php" 200
+```
+
+Now hit `http://localhost:8000` and you should see `hello world` in your browser 🎉
+
+You can even try `http://localhost:8000/?XDEBUG_SESSION_START` and the breakpoint you sent previously should also be hit!
+
